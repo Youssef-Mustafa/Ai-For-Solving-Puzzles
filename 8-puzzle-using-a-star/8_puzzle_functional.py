@@ -6,8 +6,41 @@ def compose(f, g):
     return lambda *args: f(g(*args))
 
 
+def is_solvable(puzzle):
+    """
+    Check if the 8-puzzle is solvable based on the number of inversions.
+    A puzzle is solvable if the number of inversions is even.
+    """
+
+    def flatten(puzzle, i=0, j=0, acc=()):
+        if i == len(puzzle):
+            return acc
+        if j == len(puzzle[i]):
+            return flatten(puzzle, i + 1, 0, acc)
+        if puzzle[i][j] != "_":
+            acc += (puzzle[i][j],)
+        return flatten(puzzle, i, j + 1, acc)
+
+    def count_inversions(arr, index=0, count=0):
+        if index == len(arr):
+            return count
+
+        def inner(index_inner, count_inner):
+            if index_inner == len(arr):
+                return count_inner
+            return inner(
+                index_inner + 1,
+                count_inner + (1 if arr[index] > arr[index_inner] else 0),
+            )
+
+        return count_inversions(arr, index + 1, count + inner(index + 1, 0))
+
+    flat_puzzle = flatten(puzzle)
+    inversions = count_inversions(flat_puzzle)
+    return inversions % 2 == 0
+
+
 def find_blank(puz, x="_"):
-    """Find the position of a given element in the puzzle (recursively)."""
     if not puz:
         return None
     try:
@@ -18,6 +51,7 @@ def find_blank(puz, x="_"):
         if result:
             i, j = result
             return i + 1, j
+    print(f"Error: Blank space '{x}' not found in puzzle: {puz}")
     return None
 
 
@@ -57,6 +91,9 @@ def state_transition(puz, x1, y1, x2, y2):
 def generate_children(puz, level, fval, goal, heuristic):
     """Generate child nodes recursively without mutable state."""
     x, y = find_blank(puz)
+    if (x, y) is None:
+        return ()  # Handle invalid state
+
     moves = ((x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y))
 
     def process_moves(moves, acc=()):
@@ -92,29 +129,22 @@ def heuristic(start, goal):
 
 
 def solve_puzzle(start, goal, heuristic_func):
-    """Main functional loop to solve the puzzle recursively."""
-
     def process(open_list, closed_list):
         if not open_list:
             return closed_list
-
-        # Sort by fval and pick the current node
         open_list = tuple(sorted(open_list, key=lambda x: x["fval"]))
         current = open_list[0]
         closed_list += (current,)
-
-        # Goal Check
         if heuristic_func(current["data"], goal) == 0:
             return closed_list
-
-        # Generate children
         children = generate_children(
             current["data"], current["level"], current["fval"], goal, heuristic_func
         )
         new_open_list = open_list[1:] + children
-
         return process(new_open_list, closed_list)
 
+    if not is_solvable(start):
+        raise ValueError("Puzzle is unsolvable.")
     start_node = {"data": start, "level": 0, "fval": heuristic_func(start, goal)}
     return process((start_node,), ())
 
@@ -139,6 +169,36 @@ def print_solution(solution):
         print_step(steps[1:])
 
     print_step(solution)
+
+
+def get_user_input():
+    print("Enter the 3x3 puzzle row by row, use '_' for the blank space:")
+
+    def input_row(n=3, rows=()):
+        if n == 0:
+            return rows
+        row = tuple(input(f"Row {len(rows) + 1}: ").split())
+        if len(row) != 3:
+            print("Each row must have exactly 3 elements. Try again.")
+            return input_row(n, rows)
+        return input_row(n - 1, rows + (row,))
+
+    return input_row()
+
+
+# if __name__ == "__main__":
+#     # print("Enter the start state:")
+#     # start_state = get_user_input()
+#     # print("Enter the goal state:")
+#     # goal_state = get_user_input()
+#     start_state = (("2", "5", "4"), ("1", "_", "6"), ("3", "7", "8"))
+#     goal_state = (("1", "2", "3"), ("4", "5", "6"), ("7", "8", "_"))
+#     try:
+#         print("\nSteps to solve the puzzle:")
+#         solution = solve_puzzle(start_state, goal_state, heuristic)
+#         print_solution(solution)
+#     except ValueError as e:
+#         print(e)
 
 
 class PuzzleGUI:
@@ -226,8 +286,8 @@ class PuzzleGUI:
         self.puzzle_label.pack(pady=10, padx=10, fill="both", expand=True)
 
     def create_entry_grid(self, start_row):
-        entries = [
-            [
+        entries = tuple(
+            tuple(
                 tk.Entry(
                     self.frame_input,
                     width=5,
@@ -237,9 +297,9 @@ class PuzzleGUI:
                     justify="center",
                 )
                 for _ in range(self.grid_size)
-            ]
+            )
             for _ in range(self.grid_size)
-        ]
+        )
         for i in range(self.grid_size):
             for j in range(self.grid_size):
                 entries[i][j].grid(row=start_row + i, column=j, padx=10, pady=5)
@@ -249,16 +309,18 @@ class PuzzleGUI:
         start = tuple(tuple(e.get() for e in row) for row in self.start_entries)
         goal = tuple(tuple(e.get() for e in row) for row in self.goal_entries)
 
-        # Use the solve_puzzle function from the first code
-        solution = solve_puzzle(start, goal, heuristic)
-        self.steps = solution
-        self.current_step = 0
+        try:
+            solution = solve_puzzle(start, goal, heuristic)
+            self.steps = solution
+            self.current_step = 0
 
-        if self.steps:
-            self.update_puzzle_display(self.steps[self.current_step]["data"])
-            self.next_button.config(state="normal")
-        else:
-            messagebox.showerror("Error", "No solution found for the given puzzle.")
+            if self.steps:
+                self.update_puzzle_display(self.steps[self.current_step]["data"])
+                self.next_button.config(state="normal")
+            else:
+                messagebox.showerror("Error", "No solution found for the given puzzle.")
+        except ValueError as e:
+            messagebox.showerror("Error", str(e))
 
     def next_step(self):
         self.current_step += 1
@@ -273,33 +335,7 @@ class PuzzleGUI:
         self.puzzle_label.config(text=display_text)
 
 
-#! if you want run in terminal run this
-# if __name__ == "__main__":
-
-#     def get_user_input():
-#         print("Enter the 3x3 puzzle row by row, use '_' for the blank space:")
-
-#         def input_row(n=3, rows=()):
-#             if n == 0:
-#                 return rows
-#             row = tuple(input(f"Row {len(rows) + 1}: ").split())
-#             return input_row(n - 1, rows + (row,))
-
-#         return input_row()
-
-#     print("Enter the start state:")
-#     start_state = get_user_input()
-#     print("Enter the goal state:")
-#     goal_state = get_user_input()
-
-#     # Solve the puzzle using composition
-#     composed_solver = compose(
-#         print_solution, lambda s: solve_puzzle(s, goal_state, heuristic)
-#     )
-#     print("\nSteps to solve the puzzle:")
-#     composed_solver(start_state)
-
-#! if you wan run gui run this
+# # ! if you wan run gui run this
 # if __name__ == "__main__":
 #     root = tk.Tk()
 #     app = PuzzleGUI(root)

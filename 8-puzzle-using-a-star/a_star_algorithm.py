@@ -224,6 +224,29 @@ class Puzzle:
         return steps
 
 
+def is_solvable(puzzle):
+    """
+    Checks if the given puzzle is solvable.
+    Solvable condition: Count inversions. If odd, unsolvable; if even, solvable.
+
+    Args:
+        puzzle (list of list): 2D list representing the puzzle configuration.
+
+    Returns:
+        bool: True if solvable, False otherwise.
+    """
+    flat_puzzle = [num for row in puzzle for num in row if num != "_"]
+    inversions = 0
+
+    # Count inversions in the flattened puzzle
+    for i in range(len(flat_puzzle)):
+        for j in range(i + 1, len(flat_puzzle)):
+            if flat_puzzle[i] > flat_puzzle[j]:
+                inversions += 1
+
+    return inversions % 2 == 0
+
+
 class PuzzleGUI:
     def __init__(self, master):
         self.master = master
@@ -356,6 +379,11 @@ class PuzzleGUI:
         """Solve the puzzle when button is pressed"""
         start = self.get_puzzle_state(self.start_entries)
         goal = self.get_puzzle_state(self.goal_entries)
+
+        # Validate if the puzzle is solvable
+        if not is_solvable(start):
+            messagebox.showerror("Unsolvable Puzzle", "The puzzle cannot be solved!")
+            return
 
         self.steps = self.puzzle.process(
             start, goal, self.update_puzzle_display, self.prepare_next_step
