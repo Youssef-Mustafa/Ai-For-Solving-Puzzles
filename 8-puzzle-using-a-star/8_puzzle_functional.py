@@ -1,10 +1,5 @@
-def my_reduce(function, iter, accumulator):
-    if not iter:
-        return accumulator
-
-    new_accumulator = function(iter[0], accumulator)
-
-    return my_reduce(function, iter[1:], new_accumulator)
+import tkinter as tk
+from tkinter import messagebox
 
 
 def compose(f, g):
@@ -146,28 +141,166 @@ def print_solution(solution):
     print_step(solution)
 
 
-# Input and Execution
-if __name__ == "__main__":
+class PuzzleGUI:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("8-Puzzle Solver")
+        self.master.geometry("500x800")  # Adjust the window size
+        self.master.config(bg="#f7f0e5")
 
-    def get_user_input():
-        print("Enter the 3x3 puzzle row by row, use '_' for the blank space:")
+        self.grid_size = 3
+        self.steps = []
+        self.current_step = 0
 
-        def input_row(n=3, rows=()):
-            if n == 0:
-                return rows
-            row = tuple(input(f"Row {len(rows) + 1}: ").split())
-            return input_row(n - 1, rows + (row,))
+        self.create_widgets()
 
-        return input_row()
+    def create_widgets(self):
+        # Input Frames
+        self.frame_input = tk.Frame(self.master, bg="#f7f0e5")
+        self.frame_input.pack(pady=20)
 
-    print("Enter the start state:")
-    start_state = get_user_input()
-    print("Enter the goal state:")
-    goal_state = get_user_input()
+        self.start_label = tk.Label(
+            self.frame_input,
+            text="Enter Start State:",
+            font=("Helvetica", 14, "bold"),
+            bg="#f7f0e5",
+            fg="#58554e",
+        )
+        self.start_label.grid(row=0, column=0, columnspan=self.grid_size, pady=5)
 
-    # Solve the puzzle using composition
-    composed_solver = compose(
-        print_solution, lambda s: solve_puzzle(s, goal_state, heuristic)
-    )
-    print("\nSteps to solve the puzzle:")
-    composed_solver(start_state)
+        self.goal_label = tk.Label(
+            self.frame_input,
+            text="Enter Goal State:",
+            font=("Helvetica", 14, "bold"),
+            bg="#f7f0e5",
+            fg="#58554e",
+        )
+        self.goal_label.grid(
+            row=self.grid_size + 1, column=0, columnspan=self.grid_size, pady=5
+        )
+
+        # Start and Goal Entries
+        self.start_entries = self.create_entry_grid(1)
+        self.goal_entries = self.create_entry_grid(self.grid_size + 2)
+
+        # Buttons
+        self.solve_button = tk.Button(
+            self.master,
+            text="Solve Puzzle Step by Step",
+            font=("Helvetica", 14, "bold"),
+            bg="#b6d4c5",
+            fg="#58554e",
+            relief="flat",
+            height=2,
+            command=self.solve_puzzle,
+            width=25,
+        )
+        self.solve_button.pack(pady=15)
+
+        self.next_button = tk.Button(
+            self.master,
+            text="Next Step",
+            font=("Helvetica", 14, "bold"),
+            bg="#58554e",
+            fg="white",
+            relief="flat",
+            height=2,
+            state="disabled",
+            command=self.next_step,
+            width=25,
+        )
+        self.next_button.pack(pady=10)
+
+        # Puzzle Display
+        self.puzzle_label = tk.Label(
+            self.master,
+            text="Puzzle State will be displayed here",
+            font=("Courier", 16, "bold"),
+            bg="#f7f0e5",
+            fg="#333333",
+            width=20,
+            height=5,
+            anchor="center",
+            justify="center",
+        )
+        self.puzzle_label.pack(pady=10, padx=10, fill="both", expand=True)
+
+    def create_entry_grid(self, start_row):
+        entries = [
+            [
+                tk.Entry(
+                    self.frame_input,
+                    width=5,
+                    font=("Arial", 16),
+                    bd=2,
+                    relief="solid",
+                    justify="center",
+                )
+                for _ in range(self.grid_size)
+            ]
+            for _ in range(self.grid_size)
+        ]
+        for i in range(self.grid_size):
+            for j in range(self.grid_size):
+                entries[i][j].grid(row=start_row + i, column=j, padx=10, pady=5)
+        return entries
+
+    def solve_puzzle(self):
+        start = tuple(tuple(e.get() for e in row) for row in self.start_entries)
+        goal = tuple(tuple(e.get() for e in row) for row in self.goal_entries)
+
+        # Use the solve_puzzle function from the first code
+        solution = solve_puzzle(start, goal, heuristic)
+        self.steps = solution
+        self.current_step = 0
+
+        if self.steps:
+            self.update_puzzle_display(self.steps[self.current_step]["data"])
+            self.next_button.config(state="normal")
+        else:
+            messagebox.showerror("Error", "No solution found for the given puzzle.")
+
+    def next_step(self):
+        self.current_step += 1
+        if self.current_step < len(self.steps):
+            self.update_puzzle_display(self.steps[self.current_step]["data"])
+        else:
+            messagebox.showinfo("Puzzle Solved", "The puzzle has been solved!")
+            self.next_button.config(state="disabled")
+
+    def update_puzzle_display(self, data):
+        display_text = "\n".join(" ".join(row) for row in data)
+        self.puzzle_label.config(text=display_text)
+
+
+#! if you want run in terminal run this
+# if __name__ == "__main__":
+
+#     def get_user_input():
+#         print("Enter the 3x3 puzzle row by row, use '_' for the blank space:")
+
+#         def input_row(n=3, rows=()):
+#             if n == 0:
+#                 return rows
+#             row = tuple(input(f"Row {len(rows) + 1}: ").split())
+#             return input_row(n - 1, rows + (row,))
+
+#         return input_row()
+
+#     print("Enter the start state:")
+#     start_state = get_user_input()
+#     print("Enter the goal state:")
+#     goal_state = get_user_input()
+
+#     # Solve the puzzle using composition
+#     composed_solver = compose(
+#         print_solution, lambda s: solve_puzzle(s, goal_state, heuristic)
+#     )
+#     print("\nSteps to solve the puzzle:")
+#     composed_solver(start_state)
+
+#! if you wan run gui run this
+# if __name__ == "__main__":
+#     root = tk.Tk()
+#     app = PuzzleGUI(root)
+#     root.mainloop()
