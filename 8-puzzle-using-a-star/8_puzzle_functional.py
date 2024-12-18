@@ -2,38 +2,58 @@ import tkinter as tk
 from tkinter import messagebox
 
 
+def my_reduce(function, iter, accumulator):
+    if not iter:
+        return accumulator
+
+    new_accumulator = function(iter[0], accumulator)
+
+    return my_reduce(function, iter[1:], new_accumulator)
+
+
+def my_map(function, iter):
+    return my_reduce(
+        lambda element, accumulator: accumulator + (function(element),), iter, tuple(())
+    )
+
+
+def my_filter(function, iter):
+    return my_reduce(
+        lambda element, accumulator: (
+            accumulator + (element,) if function(element) else accumulator
+        ),
+        iter,
+        tuple(()),
+    )
+
+
 def compose(f, g):
     return lambda *args: f(g(*args))
 
 
+def flatten(puzzle):
+    return my_reduce(
+        lambda row, acc: acc + tuple(my_filter(lambda x: x != "_", row)),
+        puzzle,
+        tuple(),
+    )
+
+
+def count_inversions(arr):
+    return my_reduce(
+        lambda index, acc: acc
+        + my_reduce(
+            lambda index_inner, inner_acc: inner_acc
+            + (1 if arr[index] > arr[index_inner] else 0),
+            range(index + 1, len(arr)),
+            0,
+        ),
+        range(len(arr)),
+        0,
+    )
+
+
 def is_solvable(puzzle):
-    """
-    Check if the 8-puzzle is solvable based on the number of inversions.
-    A puzzle is solvable if the number of inversions is even.
-    """
-
-    def flatten(puzzle, i=0, j=0, acc=()):
-        if i == len(puzzle):
-            return acc
-        if j == len(puzzle[i]):
-            return flatten(puzzle, i + 1, 0, acc)
-        if puzzle[i][j] != "_":
-            acc += (puzzle[i][j],)
-        return flatten(puzzle, i, j + 1, acc)
-
-    def count_inversions(arr, index=0, count=0):
-        if index == len(arr):
-            return count
-
-        def inner(index_inner, count_inner):
-            if index_inner == len(arr):
-                return count_inner
-            return inner(
-                index_inner + 1,
-                count_inner + (1 if arr[index] > arr[index_inner] else 0),
-            )
-
-        return count_inversions(arr, index + 1, count + inner(index + 1, 0))
 
     flat_puzzle = flatten(puzzle)
     inversions = count_inversions(flat_puzzle)
@@ -171,27 +191,8 @@ def print_solution(solution):
     print_step(solution)
 
 
-def get_user_input():
-    print("Enter the 3x3 puzzle row by row, use '_' for the blank space:")
-
-    def input_row(n=3, rows=()):
-        if n == 0:
-            return rows
-        row = tuple(input(f"Row {len(rows) + 1}: ").split())
-        if len(row) != 3:
-            print("Each row must have exactly 3 elements. Try again.")
-            return input_row(n, rows)
-        return input_row(n - 1, rows + (row,))
-
-    return input_row()
-
-
 # if __name__ == "__main__":
-#     # print("Enter the start state:")
-#     # start_state = get_user_input()
-#     # print("Enter the goal state:")
-#     # goal_state = get_user_input()
-#     start_state = (("2", "5", "4"), ("1", "_", "6"), ("3", "7", "8"))
+#     start_state = (("_", "1", "3"), ("4", "2", "5"), ("7", "8", "6"))
 #     goal_state = (("1", "2", "3"), ("4", "5", "6"), ("7", "8", "_"))
 #     try:
 #         print("\nSteps to solve the puzzle:")
@@ -335,8 +336,8 @@ class PuzzleGUI:
         self.puzzle_label.config(text=display_text)
 
 
-# # ! if you wan run gui run this
-# if __name__ == "__main__":
-#     root = tk.Tk()
-#     app = PuzzleGUI(root)
-#     root.mainloop()
+# ! if you wan run gui run this
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = PuzzleGUI(root)
+    root.mainloop()
